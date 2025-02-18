@@ -4,6 +4,8 @@ import { Audio } from 'expo-av';
 import { FontAwesome } from '@expo/vector-icons';
 import axios from 'axios';
 import config from '../config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 
 export default function AudioRecorderScreen() {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -90,10 +92,10 @@ export default function AudioRecorderScreen() {
         Alert.alert('Success', 'Recording uploaded successfully');
       }
     } catch (err: any) {
-      console.log(err.response.data);
-      console.log(err.response.status);
-      console.log(err.response.headers);
-      console.log(err.response.message);
+      console.log(err.response?.data);
+      console.log(err.response?.status);
+      console.log(err.response?.headers);
+      console.log(err.response?.message);
       console.error('Error in stopRecording:', err);
       Alert.alert('Error', 'Failed to save recording');
     } finally {
@@ -112,6 +114,17 @@ export default function AudioRecorderScreen() {
     } finally {
       setRecording(null);
       setIsRecording(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('username');
+      router.replace('/login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      Alert.alert('Error', 'Failed to logout');
     }
   };
 
@@ -141,6 +154,18 @@ export default function AudioRecorderScreen() {
           />
         </TouchableOpacity>
       </View>
+
+      {/* Logout Button */}
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={handleLogout}
+      >
+        <FontAwesome
+          name="sign-out"
+          size={24}
+          color="#fff"
+        />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -176,5 +201,24 @@ const styles = StyleSheet.create({
   },
   buttonActive: {
     backgroundColor: '#ffe0e0',
+  },
+  logoutButton: {
+    position: 'absolute',
+    bottom: 30,
+    right: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#ff4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });
