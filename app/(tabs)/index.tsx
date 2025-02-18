@@ -70,14 +70,19 @@ export default function AudioRecorderScreen() {
       const formData = new FormData();
       formData.append('file', {
         uri,
-        type: 'audio/m4a',
+        type: 'audio/x-m4a',
         name: 'recording.m4a',
       } as any);
 
-      console.log('Uploading to:', `${config.API_URL}/audio/upload`);
+      console.log('Uploading to:', `${config.API_URL}audio/upload`);
       
       // Upload file
-      const response = await axios.post(`${config.API_URL}/audio/upload/?description=demo`, formData,);
+      const response = await axios.post(`${config.API_URL}audio/upload/`, formData, {
+        params: { description: 'demo' },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
       console.log('Upload response:', response.data);
       
