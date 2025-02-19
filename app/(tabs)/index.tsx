@@ -60,10 +60,10 @@ export default function AudioRecorderScreen() {
       // Stop recording
       await recording.stopAndUnloadAsync();
       console.log('Recording stopped');
-      
+
       const uri = recording.getURI();
       console.log('Recording URI:', uri);
-      
+
       if (!uri) {
         throw new Error('No recording URI available');
       }
@@ -77,17 +77,23 @@ export default function AudioRecorderScreen() {
       } as any);
 
       console.log('Uploading to:', `${config.API_URL}audio/upload`);
-      
+
+      const roomId = '2470cd0e-6576-4fc8-bc6a-bb9745b3d0ee'; // Hardcoded room_id
+      const userId = '2bfc7284-dc4d-4062-8c75-91865a494c79'; // Hardcoded user_id
+      const description = 'demo'; // Hardcoded description
+
       // Upload file
       const response = await axios.post(`${config.API_URL}audio/upload/`, formData, {
-        params: { description: 'demo' },
         headers: {
           'Content-Type': 'multipart/form-data',
+          'room-id': roomId, // Add room-id to headers
+          'user-id': userId, // Add user-id to headers
         },
+        params: { description: description },  //Adding description as query parameter
       });
 
       console.log('Upload response:', response.data);
-      
+
       if (response.data.success) {
         Alert.alert('Success', 'Recording uploaded successfully');
       }
