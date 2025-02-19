@@ -40,8 +40,10 @@ export default function LoginScreen() {
       });
 
       if (response.data.access_token) {
+        // Store access_token, username, and user_id in AsyncStorage
         await AsyncStorage.setItem('token', response.data.access_token);
         await AsyncStorage.setItem('username', response.data.username);
+        await AsyncStorage.setItem('userId', response.data.user_id); // Store the user_id
         router.replace('/(tabs)');
       }
     } catch (error: any) {
@@ -84,7 +86,7 @@ export default function LoginScreen() {
             <Text style={styles.buttonText}>Login</Text>
           )}
         </TouchableOpacity>
-        
+
         <View style={styles.registerContainer}>
           <Text>Don't have an account? </Text>
           <Link href="/register" asChild>

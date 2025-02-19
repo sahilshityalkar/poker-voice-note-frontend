@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Alert, Text } from 'react-native'; // Import Text
 import { Audio } from 'expo-av';
 import { FontAwesome } from '@expo/vector-icons';
 import axios from 'axios';
@@ -10,6 +10,7 @@ import { router } from 'expo-router';
 export default function AudioRecorderScreen() {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [username, setUsername] = useState(''); // State for username
 
   useEffect(() => {
     // Request permissions when component mounts
@@ -30,6 +31,21 @@ export default function AudioRecorderScreen() {
     };
 
     getPermissions();
+
+    // Fetch username from AsyncStorage
+    const fetchUsername = async () => {
+      try {
+        const storedUsername = await AsyncStorage.getItem('username');
+        if (storedUsername) {
+          setUsername(storedUsername);
+        }
+      } catch (error) {
+        console.error('Error fetching username:', error);
+        Alert.alert('Error', 'Failed to load username');
+      }
+    };
+
+    fetchUsername();
   }, []);
 
   const startRecording = async () => {
@@ -78,8 +94,15 @@ export default function AudioRecorderScreen() {
 
       console.log('Uploading to:', `${config.API_URL}audio/upload`);
 
+      // Use stored user ID here as well
+      const userId = await AsyncStorage.getItem('userId'); // Get userId from AsyncStorage
+      if (!userId) {
+        Alert.alert('Error', 'User ID not found. Please login again.');
+        router.replace('/login'); // Redirect to login if userId is missing
+        return;
+      }
+
       const roomId = '2470cd0e-6576-4fc8-bc6a-bb9745b3d0ee'; // Hardcoded room_id
-      const userId = '2bfc7284-dc4d-4062-8c75-91865a494c79'; // Hardcoded user_id
       const description = 'demo'; // Hardcoded description
 
       // Upload file
@@ -127,6 +150,7 @@ export default function AudioRecorderScreen() {
     try {
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('username');
+      await AsyncStorage.removeItem('userId'); // Clear user ID on logout
       router.replace('/login');
     } catch (error) {
       console.error('Error during logout:', error);
@@ -136,6 +160,9 @@ export default function AudioRecorderScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Display Username */}
+      <Text style={styles.usernameText}>Welcome, {username}!</Text>
+
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.button, isRecording && styles.buttonActive]}
@@ -182,6 +209,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
+    paddingTop: 20, // Add padding to top for username
+  },
+  usernameText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
   },
   buttonContainer: {
     flexDirection: 'row',

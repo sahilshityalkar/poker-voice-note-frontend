@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import config from './config';
 
 export default function RegisterScreen() {
@@ -33,7 +34,11 @@ export default function RegisterScreen() {
       });
 
       if (response.data.access_token) {
-        // You might want to store the token in AsyncStorage here
+        // Store the token, username, and userId in AsyncStorage
+        await AsyncStorage.setItem('token', response.data.access_token);
+        await AsyncStorage.setItem('username', response.data.username);
+        await AsyncStorage.setItem('userId', response.data.user_id);
+
         router.replace('/(tabs)');
       }
     } catch (error: any) {
