@@ -1,18 +1,13 @@
 // app/(tabs)/profile/index.tsx
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import ProfileComponent from '../../component/profile/ProfileComponent';
 
-interface ProfileScreenProps {
-    onCloseProfile: () => void;
-}
-
-const ProfileScreen: React.FC<ProfileScreenProps> = ({ onCloseProfile }) => {
+// Remove the interface since onCloseProfile isn't being used
+const ProfileScreen = () => {
     return (
         <View style={styles.container}>
-            <Text>Profile Page</Text>
-            <TouchableOpacity onPress={onCloseProfile}>
-                <Text>Close Profile</Text>
-            </TouchableOpacity>
+            <ProfileComponent />
         </View>
     );
 };
@@ -20,8 +15,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onCloseProfile }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: '#F0F8FF', // Match the ProfileComponent background
     },
 });
 
