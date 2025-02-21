@@ -8,44 +8,105 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import config from './config';
 
 export default function RegisterScreen() {
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showOtpInput, setShowOtpInput] = useState(false);
 
-  const handleRegister = async () => {
-    if (!email || !password || !username) {
-      Alert.alert('Error', 'Please fill in all fields');
+  const router = useRouter();
+
+  const handleRequestOtp = async () => {
+    if (!phoneNumber.match(/^[0-9]{10,15}$/)) {
+      Alert.alert('Error', 'Please enter a valid phone number (10-15 digits)');
       return;
     }
 
     setIsLoading(true);
     try {
-      const response = await axios.post(`${config.API_URL}auth/register`, {
-        email,
-        password,
-        username,
-      });
+      const response = await axios.post(
+        `${config.API_URL}/auth/register/requestotp`,
+        {
+          phone_number: phoneNumber.trim(),
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        }
+      );
 
-      if (response.data.access_token) {
-        // Store the token, username, and userId in AsyncStorage
-        await AsyncStorage.setItem('token', response.data.access_token);
-        await AsyncStorage.setItem('username', response.data.username);
-        await AsyncStorage.setItem('userId', response.data.user_id);
-
-        router.replace('/(tabs)');
+      if (response.status === 200) {
+        Alert.alert('Success', 'OTP sent successfully');
+        setShowOtpInput(true);
+      } else {
+        Alert.alert('Error', `Request failed with status code ${response.status}`);
       }
     } catch (error: any) {
-      Alert.alert(
-        'Registration Failed',
-        error.response?.data?.detail || 'An error occurred during registration'
+      let errorMessage = 'Something went wrong. Please try again.';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp) {
+      Alert.alert('Error', 'Please enter the OTP');
+      return;
+    }
+    if (!username) {
+      Alert.alert('Error', 'Please enter the Username');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await axios.post(
+        `${config.API_URL}/auth/register/verifyotp`,
+        {
+          username: username.trim(),
+          phone_number: phoneNumber.trim(),
+          otp: otp.trim(),
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        }
       );
+
+      if (response.status === 200) {
+        // Store authentication data after successful registration
+        await Promise.all([
+          AsyncStorage.setItem('token', response.data.access_token),
+          AsyncStorage.setItem('username', response.data.username),
+          AsyncStorage.setItem('userId', response.data.user_id),
+        ]);
+
+        // Navigate to main app
+        router.replace('/(tabs)'); // Direct to main app
+
+      } else {
+        Alert.alert('Error', `Request failed with status code ${response.status}`);
+      }
+    } catch (error: any) {
+      let errorMessage = 'Something went wrong. Please try again.';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -54,48 +115,71 @@ export default function RegisterScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.form}>
-        <TextInput
-          style={styles.input}
-          placeholder="Username"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleRegister}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Register</Text>
-          )}
-        </TouchableOpacity>
-        
-        <View style={styles.loginContainer}>
-          <Text>Already have an account? </Text>
-          <Link href="/login" asChild>
-            <TouchableOpacity>
-              <Text style={styles.loginLink}>Login</Text>
+        {!showOtpInput ? (
+          <>
+            <Text style={styles.label}>Enter your phone number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Phone Number (10-15 digits)"
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
+              maxLength={15}
+              editable={!isLoading}
+            />
+            <TouchableOpacity
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleRequestOtp}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Send OTP For Register</Text>
+              )}
             </TouchableOpacity>
-          </Link>
-        </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.label}>Enter Username</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter Username"
+              value={username}
+              onChangeText={setUsername}
+              editable={!isLoading}
+            />
+            <Text style={styles.label}>Enter OTP</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter OTP"
+              value={otp}
+              onChangeText={setOtp}
+              keyboardType="numeric"
+              maxLength={6}
+              editable={!isLoading}
+            />
+            <TouchableOpacity
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleVerifyOtp}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Register</Text>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+      <View style={styles.registerContainer}>
+        <Text>Already have an account? </Text>
+        <Link href="/login" asChild>
+          <TouchableOpacity>
+            <Text style={styles.registerLink}>Login</Text>
+          </TouchableOpacity>
+        </Link>
       </View>
     </View>
   );
@@ -111,6 +195,11 @@ const styles = StyleSheet.create({
   form: {
     gap: 15,
   },
+  label: {
+    fontSize: 16,
+    marginBottom: 5,
+    color: '#333',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#ddd',
@@ -124,17 +213,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  loginContainer: {
+  registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 20,
   },
-  loginLink: {
+  registerLink: {
     color: '#007AFF',
     fontWeight: '600',
   },

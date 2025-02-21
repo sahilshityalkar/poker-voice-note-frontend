@@ -32,7 +32,7 @@ export default function LoginScreen() {
         setIsLoading(true);
         try {
             const response = await axios.post(
-                `${config.API_URL}auth/sendotp`, // Use the value from the app/config
+                `${config.API_URL}/auth/sendotp`, // Use the value from the app/config
                 {
                     phone_number: phoneNumber.trim(),
                 },
@@ -87,7 +87,7 @@ export default function LoginScreen() {
         setIsLoading(true);
         try {
             const response = await axios.post(
-                `${config.API_URL}auth/verifyotp`, // Use the value from the app/config
+                `${config.API_URL}/auth/verifyotp`, // Use the value from the app/config
                 {
                     phone_number: storedPhoneNumber,
                     otp: otp.trim(),
@@ -143,7 +143,7 @@ export default function LoginScreen() {
                             {isLoading ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
-                                <Text style={styles.buttonText}>Send OTP</Text>
+                                <Text style={styles.buttonText}>Send OTP For Login</Text>
                             )}
                         </TouchableOpacity>
                     </>
