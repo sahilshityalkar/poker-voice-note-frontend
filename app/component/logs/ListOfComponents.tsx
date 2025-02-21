@@ -101,7 +101,7 @@ export default function ListOfComponents() {
     }
 
     const renderItem = ({ item }: { item: TranscriptItem }) => (
-        <TouchableOpacity 
+        <TouchableOpacity
             onPress={() => handleCardPress(item.transcript_id)}
             activeOpacity={0.7}
             style={styles.cardWrapper}
@@ -163,7 +163,7 @@ export default function ListOfComponents() {
                     ))}
                 </View>
 
-                <ScrollView 
+                <ScrollView
                     style={styles.contentContainer}
                     showsVerticalScrollIndicator={false}
                 >
