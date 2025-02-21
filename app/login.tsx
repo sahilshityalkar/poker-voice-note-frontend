@@ -1,140 +1,253 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View,
-  TextInput,
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
+    View,
+    TextInput,
+    TouchableOpacity,
+    Text,
+    StyleSheet,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import config from './config';
+import config from '../app/config'; // Import config from the correct path
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [otp, setOtp] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [showOtpInput, setShowOtpInput] = useState(false);
+    const [storedPhoneNumber, setStoredPhoneNumber] = useState('');
+    const router = useRouter();
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
+    //const API_URL = "http://192.168.11.229:8000"; // Remove the temporary hardcoded IP
 
-    setIsLoading(true);
-    try {
-      const response = await axios({
-        method: 'post',
-        url: `${config.API_URL}auth/login`,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        data: {
-          email: email.trim(),
-          password: password.trim()
+    const handleSendOtp = async () => {
+        if (!phoneNumber.match(/^[0-9]{10,15}$/)) {
+            Alert.alert('Error', 'Please enter a valid phone number (10-15 digits)');
+            return;
         }
-      });
 
-      if (response.data.access_token) {
-        // Store access_token, username, and user_id in AsyncStorage
-        await AsyncStorage.setItem('token', response.data.access_token);
-        await AsyncStorage.setItem('username', response.data.username);
-        await AsyncStorage.setItem('userId', response.data.user_id); // Store the user_id
-        router.replace('/(tabs)');
-      }
-    } catch (error: any) {
-      console.log('Login error:', error.response?.data || error.message);
-      Alert.alert(
-        'Login Failed',
-        error.response?.data?.detail || 'An error occurred during login'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        setIsLoading(true);
+        try {
+            const response = await axios.post(
+                `${config.API_URL}auth/sendotp`, // Use the value from the app/config
+                {
+                    phone_number: phoneNumber.trim(),
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                }
+            );
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.form}>
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleLogin}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Login</Text>
-          )}
-        </TouchableOpacity>
+            if (response.status === 200) {
+                Alert.alert('Success', 'OTP sent successfully');
+                setShowOtpInput(true);
+                setStoredPhoneNumber(phoneNumber.trim());
+            } else {
+                Alert.alert('Error', `Request failed with status code ${response.status}`);
+            }
+        } catch (error: any) {
+            console.error('Send OTP error:', error);
 
-        <View style={styles.registerContainer}>
-          <Text>Don't have an account? </Text>
-          <Link href="/register" asChild>
-            <TouchableOpacity>
-              <Text style={styles.registerLink}>Register</Text>
-            </TouchableOpacity>
-          </Link>
+            let errorMessage = 'Something went wrong. Please try again.';
+
+            if (error.response) {
+                console.error('Response data:', error.response.data);
+                console.error('Response status:', error.response.status);
+                console.error('Response headers:', error.response.headers);
+
+                if (error.response.data?.detail) {
+                    errorMessage = error.response.data.detail;
+                }
+            } else if (error.request) {
+                errorMessage = 'No response received from the server. Please check your internet connection.';
+                console.error('No response received:', error.request);
+            } else {
+                errorMessage = error.message;
+                console.error('Error during request setup:', error.message);
+            }
+
+            Alert.alert('Error', errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        if (!otp) {
+            Alert.alert('Error', 'Please enter the OTP');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const response = await axios.post(
+                `${config.API_URL}auth/verifyotp`, // Use the value from the app/config
+                {
+                    phone_number: storedPhoneNumber,
+                    otp: otp.trim(),
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                }
+            );
+
+            await Promise.all([
+                AsyncStorage.setItem('token', response.data.access_token),
+                AsyncStorage.setItem('username', response.data.username),
+                AsyncStorage.setItem('userId', response.data.user_id),
+            ]);
+
+            router.replace('/(tabs)');
+
+        } catch (error: any) {
+            let errorMessage = 'Something went wrong. Please try again.';
+            if (error.response?.data?.detail) {
+                errorMessage = error.response.data.detail;
+            }
+            Alert.alert('Error', errorMessage);
+
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <View style={styles.container}>
+            <View style={styles.form}>
+                {!showOtpInput ? (
+                    <>
+                        <Text style={styles.label}>Enter your phone number</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Phone Number (10-15 digits)"
+                            value={phoneNumber}
+                            onChangeText={setPhoneNumber}
+                            keyboardType="phone-pad"
+                            maxLength={15}
+                            editable={!isLoading}
+                        />
+                        <TouchableOpacity
+                            style={[styles.button, isLoading && styles.buttonDisabled]}
+                            onPress={handleSendOtp}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.buttonText}>Send OTP</Text>
+                            )}
+                        </TouchableOpacity>
+                    </>
+                ) : (
+                    <>
+                        <Text style={styles.label}>Enter OTP sent to {storedPhoneNumber}</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Enter 6-digit OTP"
+                            value={otp}
+                            onChangeText={setOtp}
+                            keyboardType="numeric"
+                            maxLength={6}
+                            editable={!isLoading}
+                        />
+                        <TouchableOpacity
+                            style={[styles.button, isLoading && styles.buttonDisabled]}
+                            onPress={handleVerifyOtp}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.buttonText}>Verify OTP</Text>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.backButton}
+                            onPress={() => {
+                                setShowOtpInput(false);
+                                setOtp('');
+                                setPhoneNumber('');
+                                setStoredPhoneNumber('');
+                            }}
+                        >
+                            <Text style={styles.backButtonText}>Change Phone Number</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
+
+                <View style={styles.registerContainer}>
+                    <Text>Don't have an account? </Text>
+                    <Link href="/register" asChild>
+                        <TouchableOpacity>
+                            <Text style={styles.registerLink}>Register</Text>
+                        </TouchableOpacity>
+                    </Link>
+                </View>
+            </View>
         </View>
-      </View>
-    </View>
-  );
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-  },
-  form: {
-    gap: 15,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 15,
-    borderRadius: 8,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  registerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-  registerLink: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        padding: 20,
+        backgroundColor: '#fff',
+    },
+    form: {
+        gap: 15,
+    },
+    label: {
+        fontSize: 16,
+        marginBottom: 5,
+        color: '#333',
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        padding: 15,
+        borderRadius: 8,
+        fontSize: 16,
+    },
+    button: {
+        backgroundColor: '#007AFF',
+        padding: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    buttonDisabled: {
+        opacity: 0.7,
+    },
+    buttonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    backButton: {
+        padding: 10,
+        alignItems: 'center',
+    },
+    backButtonText: {
+        color: '#007AFF',
+        fontSize: 14,
+    },
+    registerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginTop: 20,
+    },
+    registerLink: {
+        color: '#007AFF',
+        fontWeight: '600',
+    },
 });
