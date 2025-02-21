@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Card } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -93,19 +93,24 @@ export default function ListOfComponents() {
 
     if (isLoading) {
         return (
-            <View style={styles.container}>
-                <Text>Loading transcripts...</Text>
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#0066CC" />
+                <Text style={styles.loadingText}>Loading transcripts...</Text>
             </View>
         );
     }
 
     const renderItem = ({ item }: { item: TranscriptItem }) => (
-        <TouchableOpacity onPress={() => handleCardPress(item.transcript_id)}>
+        <TouchableOpacity 
+            onPress={() => handleCardPress(item.transcript_id)}
+            activeOpacity={0.7}
+            style={styles.cardWrapper}
+        >
             <Card style={styles.card}>
                 <Card.Content>
                     <View style={styles.dateContainer}>
                         <Text style={styles.date}>
-                            {format(new Date(item.created_at), 'dd MMM yyyy')}
+                            {format(new Date(item.created_at), 'MMM dd, yyyy')}
                         </Text>
                         <Text style={styles.time}>
                             {format(new Date(item.created_at), 'HH:mm')}
@@ -123,14 +128,14 @@ export default function ListOfComponents() {
 
     if (selectedTranscriptId && transcriptDetails) {
         return (
-            <ScrollView style={styles.container}>
+            <View style={styles.container}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-                        <Text>Back</Text>
+                        <Text style={styles.backButtonText}>← Back</Text>
                     </TouchableOpacity>
                     <View style={styles.dateTimeContainer}>
                         <Text style={styles.dateText}>
-                            {format(new Date(transcriptDetails.created_at), 'dd MMM yyyy')}
+                            {format(new Date(transcriptDetails.created_at), 'MMM dd, yyyy')}
                         </Text>
                         <Text style={styles.timeText}>
                             {format(new Date(transcriptDetails.created_at), 'HH:mm')}
@@ -158,16 +163,17 @@ export default function ListOfComponents() {
                     ))}
                 </View>
 
-                <View style={styles.contentContainer}>
-                    <ScrollView>
-                        <Text style={styles.contentText}>
-                            {activeTab === 'Summary' && (transcriptDetails.summary?.replace('Summary: ', '') || '')}
-                            {activeTab === 'Transcript' && (transcriptDetails.transcript || '')}
-                            {activeTab === 'Insight' && (transcriptDetails.insight || '')}
-                        </Text>
-                    </ScrollView>
-                </View>
-            </ScrollView>
+                <ScrollView 
+                    style={styles.contentContainer}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <Text style={styles.contentText}>
+                        {activeTab === 'Summary' && (transcriptDetails.summary?.replace('Summary: ', '') || '')}
+                        {activeTab === 'Transcript' && (transcriptDetails.transcript || '')}
+                        {activeTab === 'Insight' && (transcriptDetails.insight || '')}
+                    </Text>
+                </ScrollView>
+            </View>
         );
     }
 
@@ -177,6 +183,7 @@ export default function ListOfComponents() {
             renderItem={renderItem}
             keyExtractor={(item) => item._id}
             contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
         />
     );
 }
@@ -184,81 +191,164 @@ export default function ListOfComponents() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 10,
+        backgroundColor: '#F7F9FC',
+        padding: 16,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#F7F9FC',
+        gap: 16,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: '#475569',
+        marginTop: 8,
     },
     listContainer: {
-        paddingBottom: 20,
+        padding: 16,
+        paddingBottom: 32,
+    },
+    cardWrapper: {
+        marginBottom: 16,
     },
     card: {
-        margin: 10,
-        elevation: 3,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
     },
     dateContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 5,
+        alignItems: 'center',
+        marginBottom: 12,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
     },
     date: {
         fontSize: 14,
-        color: '#333',
+        color: '#475569',
+        fontWeight: '500',
     },
     time: {
         fontSize: 14,
-        color: '#666',
+        color: '#64748B',
     },
     summaryContainer: {
         flex: 1,
     },
     summary: {
-        fontSize: 16,
+        fontSize: 15,
         lineHeight: 22,
-        color: '#333',
+        color: '#334155',
+        fontWeight: '400',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 10,
+        marginBottom: 24,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
     },
     backButton: {
-        padding: 5,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    backButtonText: {
+        color: '#334155',
+        fontSize: 14,
+        fontWeight: '500',
     },
     dateTimeContainer: {
         flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     dateText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginRight: 10,
+        fontSize: 15,
+        fontWeight: '500',
+        color: '#334155',
     },
     timeText: {
         fontSize: 14,
-        color: '#666',
+        color: '#64748B',
     },
     tabButtonsContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        marginBottom: 10,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 24,
     },
     tabButton: {
-        padding: 10,
-        backgroundColor: '#eee',
+        flex: 1,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 8,
     },
     activeTabButton: {
-        backgroundColor: '#ddd',
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
     },
     tabButtonText: {
-        fontSize: 16,
+        fontSize: 14,
+        textAlign: 'center',
+        color: '#64748B',
+        fontWeight: '500',
     },
     activeTabButtonText: {
-        fontWeight: 'bold',
+        color: '#0066CC',
     },
     contentContainer: {
         flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
     },
     contentText: {
-        fontSize: 16,
+        fontSize: 15,
         lineHeight: 24,
-        padding: 10,
+        color: '#334155',
+        letterSpacing: 0.3,
     },
 });
