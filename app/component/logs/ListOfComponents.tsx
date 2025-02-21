@@ -73,7 +73,9 @@ export default function ListOfComponents() {
             <Card style={styles.card}>
                 <Card.Content>
                     <View style={styles.dateContainer}>
-                        <Text style={styles.date}>{format(new Date(item.created_at), 'MMM dd, yyyy')}</Text>
+                        <Text style={styles.date}>
+                            {format(new Date(item.created_at), 'dd MMM yyyy')}  {/* CHANGED DATE FORMAT */}
+                        </Text>
                         <Text style={styles.time}>{format(new Date(item.created_at), 'HH:mm')}</Text>
                     </View>
                     <Text style={styles.summary} numberOfLines={3} ellipsizeMode="tail">{item.summary}</Text>
