@@ -1,12 +1,11 @@
-// app/(tabs)/index.tsx
+// app/(tabs)/players/index.tsx
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import AudioRecorder from '../component/audio/AudioRecorder';
+import { View, Text, StyleSheet } from 'react-native';
 
-export default function HomeScreen() {
+export default function PlayersList() {
     return (
         <View style={styles.container}>
-            <AudioRecorder />
+            <Text>Players List</Text>
         </View>
     );
 }
