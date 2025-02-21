@@ -1,27 +1,33 @@
 // components/AudioRecorder.tsx
 import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { Audio } from 'expo-av';
 import { FontAwesome } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import axios from 'axios';
 import config from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router'; // Import router
-
 
 export default function AudioRecorder() {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // State for uploading
-  //const [username, setUsername] = useState('');  //No needs to store username on this component
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const getPermissions = async () => {
       try {
         const { status } = await Audio.requestPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission required', 'Please grant audio recording permissions');
+          Alert.alert(
+            'Permission required',
+            'Please grant audio recording permissions'
+          );
           return;
         }
         await Audio.setAudioModeAsync({
@@ -35,7 +41,7 @@ export default function AudioRecorder() {
     };
 
     getPermissions();
-       return () => {
+    return () => {
       // Cleanup function to stop and unload recording on unmount
       if (recording) {
         stopRecording();
@@ -87,32 +93,32 @@ export default function AudioRecorder() {
         name: 'recording.m4a',
       } as any);
 
-      console.log('Uploading to:', `${config.API_URL}audio/upload`);
+      console.log('Uploading to:', `${config.API_URL}/audio/upload/`);
 
       const userId = await AsyncStorage.getItem('userId'); // Get userId from AsyncStorage
       if (!userId) {
         Alert.alert('Error', 'User ID not found. Please login again.');
-        router.replace('/login'); // Redirect to login if userId is missing
+        //router.replace('/login'); // Redirect to login if userId is missing   // router is not defines here
         return;
       }
 
-      const roomId = '2470cd0e-6576-4fc8-bc6a-bb9745b3d0ee'; // Hardcoded room_id
-      const description = 'demo'; // Hardcoded description
+      const headers = {
+        'Content-Type': 'multipart/form-data',
+        'user-id': userId, // Pass the userId in the header
+      };
 
-      const response = await axios.post(`${config.API_URL}audio/upload/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'room-id': roomId,
-          'user-id': userId,
-        },
-        params: { description: description },
-      });
+      const response = await axios.post(
+        `${config.API_URL}/audio/upload/`,
+        formData,
+        {
+          headers: headers,
+        }
+      );
 
       console.log('Upload response:', response.data);
       if (response.data.success) {
         Alert.alert('Success', 'Recording uploaded successfully');
       }
-
     } catch (err: any) {
       console.log(err.response?.data);
       console.log(err.response?.status);
@@ -127,20 +133,22 @@ export default function AudioRecorder() {
     }
   };
 
-  const resetRecording = async () => {
-    try {
-      if (recording) {
-        await recording.stopAndUnloadAsync();
-        await FileSystem.deleteAsync(recording.getURI() || '', { idempotent: true });
-      }
-    } catch (err) {
-      console.error('Error in resetRecording:', err);
-      Alert.alert('Error', 'Failed to reset Recording,');
-    } finally {
-      setRecording(null);
-      setIsRecording(false);
-    }
-  };
+  // const resetRecording = async () => {    remove this resetRecording function
+  //     try {
+  //         if (recording) {
+  //             await recording.stopAndUnloadAsync();
+  //             await FileSystem.deleteAsync(recording.getURI() || '', {
+  //                 idempotent: true,
+  //             });
+  //         }
+  //     } catch (err) {
+  //         console.error('Error in resetRecording:', err);
+  //         Alert.alert('Error', 'Failed to reset Recording,');
+  //     } finally {
+  //         setRecording(null);
+  //         setIsRecording(false);
+  //     }
+  // };
 
   return (
     <View style={styles.container}>
@@ -149,27 +157,28 @@ export default function AudioRecorder() {
       )}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.button, isRecording && styles.buttonActive]}
+          style={[styles.recordButton, isRecording && styles.recordButtonActive]}
           onPress={isRecording ? stopRecording : startRecording}
         >
           <FontAwesome
             name={isRecording ? 'stop-circle' : 'microphone'}
-            size={50}
+            size={80} // Make the icon larger
             color={isRecording ? '#ff4444' : '#007AFF'}
           />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={resetRecording}
-          disabled={isRecording}
-        >
-          <FontAwesome
-            name="refresh"
-            size={50}
-            color={isRecording ? '#cccccc' : '#007AFF'}
-          />
-        </TouchableOpacity>
+        {/* Remove the refresh button */}
+        {/*  <TouchableOpacity
+                    style={styles.button}
+                    onPress={resetRecording}
+                    disabled={isRecording}
+                >
+                    <FontAwesome
+                        name="refresh"
+                        size={50}
+                        color={isRecording ? '#cccccc' : '#007AFF'}
+                    />
+                </TouchableOpacity> */}
       </View>
     </View>
   );
@@ -177,20 +186,22 @@ export default function AudioRecorder() {
 
 const styles = StyleSheet.create({
   container: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20, // Add margin to separate from other elements
+    flex: 1,  
+    justifyContent: 'center', 
+    alignItems: 'center',  
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 20,
+    alignItems: 'center',   // Center horizontally
+    justifyContent: 'center', // Add this line
+    padding: 20,               // Optional: Add padding around the button
+    borderRadius: 100,  // Make the button fully rounded
+    backgroundColor: '#ddd',   // Add a button background color
+    elevation: 5,              // Add a shadow for a raised effect
   },
-  button: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  recordButton: {
+    width: 120,   // Adjust as needed
+    height: 120,  // Adjust as needed
+    borderRadius: 60, // Make it a circle
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
@@ -203,7 +214,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
-  buttonActive: {
+  recordButtonActive: {
     backgroundColor: '#ffe0e0',
   },
 });

@@ -4,7 +4,7 @@ import { View, TouchableOpacity, StyleSheet, Alert, Text } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import AudioRecorder from '../component/audio/AudioRecorder';  // Correct import path
+import AudioRecorder from '../component/audio/AudioRecorder';
 
 export default function AudioRecorderScreen() {
   const [username, setUsername] = useState(''); // State for username
