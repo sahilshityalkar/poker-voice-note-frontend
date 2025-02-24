@@ -8,22 +8,22 @@ import {
     Alert,
     ActivityIndicator,
 } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import config from '../app/config'; // Import config from the correct path
+import config from '../app/config';
+import { StatusBar } from 'expo-status-bar';
 
 export default function LoginScreen() {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [otp, setOtp] = useState('');
+    const [username, setUsername] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [showOtpInput, setShowOtpInput] = useState(false);
-    const [storedPhoneNumber, setStoredPhoneNumber] = useState('');
+    const [stage, setStage] = useState<'phone' | 'otp' | 'register'>('phone'); // phone -> otp -> register
+    const [welcomeMessage, setWelcomeMessage] = useState<string | null>(null); // Display welcome message if existing user
     const router = useRouter();
 
-    //const API_URL = "http://192.168.11.229:8000"; // Remove the temporary hardcoded IP
-
-    const handleSendOtp = async () => {
+    const handleAuth = async () => {
         if (!phoneNumber.match(/^[0-9]{10,15}$/)) {
             Alert.alert('Error', 'Please enter a valid phone number (10-15 digits)');
             return;
@@ -32,10 +32,8 @@ export default function LoginScreen() {
         setIsLoading(true);
         try {
             const response = await axios.post(
-                `${config.API_URL}/auth/sendotp`, // Use the value from the app/config
-                {
-                    phone_number: phoneNumber.trim(),
-                },
+                `${config.API_URL}/auth/auth`,  // Corrected endpoint
+                { phone_number: phoneNumber.trim() },
                 {
                     headers: {
                         'Content-Type': 'application/json',
@@ -45,34 +43,28 @@ export default function LoginScreen() {
             );
 
             if (response.status === 200) {
-                Alert.alert('Success', 'OTP sent successfully');
-                setShowOtpInput(true);
-                setStoredPhoneNumber(phoneNumber.trim());
+                // Check if the user exists
+                if (response.data.status === 'success') {
+                    // User exists, show welcome message and OTP input
+                    setWelcomeMessage(`Welcome back, ${response.data.username}!`);
+                    setStage('otp');
+                } else if (response.data.status === 'user_not_found') {
+                    // User not found, show username and OTP inputs
+                    setStage('register');
+                    setWelcomeMessage(null); // Clear any previous message
+                }
             } else {
                 Alert.alert('Error', `Request failed with status code ${response.status}`);
             }
         } catch (error: any) {
-            console.error('Send OTP error:', error);
-
+            console.error('Authentication error:', error);
             let errorMessage = 'Something went wrong. Please try again.';
 
-            if (error.response) {
-                console.error('Response data:', error.response.data);
-                console.error('Response status:', error.response.status);
-                console.error('Response headers:', error.response.headers);
-
-                if (error.response.data?.detail) {
-                    errorMessage = error.response.data.detail;
-                }
-            } else if (error.request) {
-                errorMessage = 'No response received from the server. Please check your internet connection.';
-                console.error('No response received:', error.request);
-            } else {
-                errorMessage = error.message;
-                console.error('Error during request setup:', error.message);
+            if (error.response?.data?.detail) {
+                errorMessage = error.response.data.detail;
             }
-
             Alert.alert('Error', errorMessage);
+
         } finally {
             setIsLoading(false);
         }
@@ -84,14 +76,22 @@ export default function LoginScreen() {
             return;
         }
 
+        if (stage === 'register' && !username) {
+            Alert.alert('Error', 'Please enter a username to register.');
+            return;
+        }
+
         setIsLoading(true);
         try {
+            const requestBody = {
+                phone_number: phoneNumber.trim(),
+                otp: otp.trim(),
+                ...(stage === 'register' ? { username: username.trim() } : {}), // Conditionally add username
+            };
+
             const response = await axios.post(
-                `${config.API_URL}/auth/verifyotp`, // Use the value from the app/config
-                {
-                    phone_number: storedPhoneNumber,
-                    otp: otp.trim(),
-                },
+                `${config.API_URL}/auth/verifyotp`, // call this endpoint
+                requestBody,
                 {
                     headers: {
                         'Content-Type': 'application/json',
@@ -100,21 +100,22 @@ export default function LoginScreen() {
                 }
             );
 
+            // Store authentication data after successful registration
             await Promise.all([
                 AsyncStorage.setItem('token', response.data.access_token),
                 AsyncStorage.setItem('username', response.data.username),
                 AsyncStorage.setItem('userId', response.data.user_id),
             ]);
-
-            router.replace('/(tabs)');
+            router.replace('/(tabs)'); // Direct to main app
 
         } catch (error: any) {
+            console.error('Verify OTP error:', error);
             let errorMessage = 'Something went wrong. Please try again.';
+
             if (error.response?.data?.detail) {
                 errorMessage = error.response.data.detail;
             }
             Alert.alert('Error', errorMessage);
-
         } finally {
             setIsLoading(false);
         }
@@ -122,8 +123,13 @@ export default function LoginScreen() {
 
     return (
         <View style={styles.container}>
+            <StatusBar style="auto" />
             <View style={styles.form}>
-                {!showOtpInput ? (
+                {welcomeMessage && (
+                    <Text style={styles.welcomeMessage}>{welcomeMessage}</Text>
+                )}
+
+                {stage === 'phone' && (
                     <>
                         <Text style={styles.label}>Enter your phone number</Text>
                         <TextInput
@@ -137,28 +143,46 @@ export default function LoginScreen() {
                         />
                         <TouchableOpacity
                             style={[styles.button, isLoading && styles.buttonDisabled]}
-                            onPress={handleSendOtp}
+                            onPress={handleAuth}
                             disabled={isLoading}
                         >
                             {isLoading ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
-                                <Text style={styles.buttonText}>Send OTP For Login</Text>
+                                <Text style={styles.buttonText}>
+                                    {isLoading ? 'Sending OTP...' : 'Send OTP'}
+                                </Text>
                             )}
                         </TouchableOpacity>
                     </>
-                ) : (
+                )}
+
+                {(stage === 'otp' || stage === 'register') && (
                     <>
-                        <Text style={styles.label}>Enter OTP sent to {storedPhoneNumber}</Text>
+                        {stage === 'register' && (
+                            <>
+                                <Text style={styles.label}>Enter Username</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Username"
+                                    value={username}
+                                    onChangeText={setUsername}
+                                    editable={!isLoading}
+                                />
+                            </>
+                        )}
+
+                        <Text style={styles.label}>Enter OTP</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="Enter 6-digit OTP"
+                            placeholder="OTP"
                             value={otp}
                             onChangeText={setOtp}
-                            keyboardType="numeric"
+                            keyboardType="number-pad"
                             maxLength={6}
                             editable={!isLoading}
                         />
+
                         <TouchableOpacity
                             style={[styles.button, isLoading && styles.buttonDisabled]}
                             onPress={handleVerifyOtp}
@@ -167,31 +191,15 @@ export default function LoginScreen() {
                             {isLoading ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
-                                <Text style={styles.buttonText}>Verify OTP</Text>
+                                <Text style={styles.buttonText}>
+                                    {stage === 'otp' ? 'Login' : 'Register'}
+                                </Text>
                             )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.backButton}
-                            onPress={() => {
-                                setShowOtpInput(false);
-                                setOtp('');
-                                setPhoneNumber('');
-                                setStoredPhoneNumber('');
-                            }}
-                        >
-                            <Text style={styles.backButtonText}>Change Phone Number</Text>
                         </TouchableOpacity>
                     </>
                 )}
 
-                <View style={styles.registerContainer}>
-                    <Text>Don't have an account? </Text>
-                    <Link href="/register" asChild>
-                        <TouchableOpacity>
-                            <Text style={styles.registerLink}>Register</Text>
-                        </TouchableOpacity>
-                    </Link>
-                </View>
+
             </View>
         </View>
     );
@@ -233,21 +241,10 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
-    backButton: {
-        padding: 10,
-        alignItems: 'center',
-    },
-    backButtonText: {
-        color: '#007AFF',
-        fontSize: 14,
-    },
-    registerContainer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginTop: 20,
-    },
-    registerLink: {
-        color: '#007AFF',
-        fontWeight: '600',
+    welcomeMessage: {
+        fontSize: 18,
+        marginBottom: 20,
+        textAlign: 'center',
+        color: '#2e78b7',
     },
 });
