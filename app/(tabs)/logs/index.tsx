@@ -1,12 +1,12 @@
 // app/(tabs)/logs/index.tsx
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import ListOfComponents from '../../component/logs/ListOfComponents';
+import ListOflogs from '../../component/logs/ListOfComponents';
 
 export default function LogsList() {
     return (
         <View style={styles.container}>
-            <ListOfComponents />
+            <ListOflogs />
         </View>
     );
 }

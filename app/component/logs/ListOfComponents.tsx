@@ -1,124 +1,124 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { Card } from 'react-native-paper';
+import {
+    View,
+    Text,
+    StyleSheet,
+    FlatList,
+    ActivityIndicator,
+    TouchableOpacity,
+    ScrollView,
+    Platform,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import config from '../../config';
 import { format } from 'date-fns';
+import { Card } from 'react-native-paper';
 
-interface TranscriptItem {
+// Color Palette
+const PRIMARY_COLOR = '#007BFF'; // Blue
+const SECONDARY_COLOR = '#6C757D'; // Gray
+const BACKGROUND_COLOR = '#F8F9FA'; // Light Gray
+const CARD_BACKGROUND_COLOR = '#FFFFFF'; // White
+const TEXT_COLOR = '#212529'; // Dark Gray
+const SHADOW_COLOR = '#000';
+
+interface NoteItem {
     _id: string;
-    transcript_id: string;
-    filename: string;
-    created_at: string;
-    transcript: string;
-    user_id: string;
-    summary: string;
-    insight: string;
+    date: string;
+    summaryFromGPT: string;
 }
 
-export default function ListOfComponents() {
-    const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
+interface NoteDetails {
+    _id: string;
+    date: string;
+    transcriptFromDeepgram: string;
+    summaryFromGPT: string;
+    insightFromGPT: string;
+}
+
+export default function ListOflogs() {
+    const [notes, setNotes] = useState<NoteItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedTranscriptId, setSelectedTranscriptId] = useState<string | null>(null);
-    const [transcriptDetails, setTranscriptDetails] = useState<TranscriptItem | null>(null);
+    const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+    const [noteDetails, setNoteDetails] = useState<NoteDetails | null>(null);
     const [activeTab, setActiveTab] = useState<'Summary' | 'Transcript' | 'Insight'>('Summary');
 
     useEffect(() => {
-        const fetchTranscripts = async () => {
+        const fetchNotes = async () => {
             try {
                 const userId = await AsyncStorage.getItem('userId');
-                if (!userId) {
-                    Alert.alert('Error', 'User ID not found. Please login again.');
-                    return;
-                }
-
-                const response = await axios.get(`${config.API_URL}/transcripts/transcripts/`, {
-                    headers: {
-                        'user-id': userId,
-                    },
+                const response = await axios.get(`${config.API_URL}/transcripts/notes`, {
+                    headers: { 'user-id': userId },
                 });
-
-                if (response.status === 200) {
-                    setTranscripts(response.data);
-                } else {
-                    Alert.alert('Error', 'Failed to fetch transcripts');
-                }
+                setNotes(response.data);
             } catch (error) {
-                console.error('Error fetching transcripts:', error);
-                Alert.alert('Error', 'Failed to fetch transcripts');
+                console.error("Error fetching notes:", error);
             } finally {
                 setIsLoading(false);
             }
         };
-
-        fetchTranscripts();
+        fetchNotes();
     }, []);
 
-    const fetchTranscriptDetails = async (transcriptId: string) => {
+    const fetchNoteDetails = async (noteId: string) => {
         try {
             const userId = await AsyncStorage.getItem('userId');
-            if (!userId) {
-                Alert.alert('Error', 'User ID not found. Please login again.');
-                return;
-            }
-
-            const response = await axios.get(`${config.API_URL}/transcript/transcript/${transcriptId}`, {
-                headers: {
-                    'user-id': userId,
-                },
+            const response = await axios.get(`${config.API_URL}/transcripts/note/${noteId}`, {
+                headers: { 'user-id': userId },
             });
-
-            if (response.status === 200) {
-                setTranscriptDetails(response.data);
-            } else {
-                Alert.alert('Error', 'Failed to fetch transcript details');
-            }
+            setNoteDetails(response.data);
         } catch (error) {
-            console.error('Error fetching transcript details:', error);
-            Alert.alert('Error', 'Failed to fetch transcript details');
+            console.error("Error fetching note details:", error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const handleCardPress = (transcriptId: string) => {
-        setSelectedTranscriptId(transcriptId);
-        fetchTranscriptDetails(transcriptId);
+    const handleCardPress = (noteId: string) => {
+        setSelectedNoteId(noteId);
+        fetchNoteDetails(noteId);
         setActiveTab('Summary');
     };
 
     const handleBackPress = () => {
-        setSelectedTranscriptId(null);
-        setTranscriptDetails(null);
+        setSelectedNoteId(null);
+        setNoteDetails(null);
     };
 
     if (isLoading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#0066CC" />
-                <Text style={styles.loadingText}>Loading transcripts...</Text>
+                <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+                <Text style={styles.loadingText}>Loading...</Text>
             </View>
         );
     }
 
-    const renderItem = ({ item }: { item: TranscriptItem }) => (
+    const renderItem = ({ item }: { item: NoteItem }) => (
         <TouchableOpacity
-            onPress={() => handleCardPress(item.transcript_id)}
-            activeOpacity={0.7}
             style={styles.cardWrapper}
+            onPress={() => handleCardPress(item._id)}
         >
             <Card style={styles.card}>
                 <Card.Content>
                     <View style={styles.dateContainer}>
                         <Text style={styles.date}>
-                            {format(new Date(item.created_at), 'MMM dd, yyyy')}
+                            {format(new Date(item.date), 'dd MMM yyyy')}
                         </Text>
                         <Text style={styles.time}>
-                            {format(new Date(item.created_at), 'HH:mm')}
+                            {format(new Date(item.date), 'HH:mm')}
                         </Text>
                     </View>
+
                     <View style={styles.summaryContainer}>
-                        <Text style={styles.summary} numberOfLines={3} ellipsizeMode="tail">
-                            {typeof item.summary === 'string' ? item.summary : ''}
+                        <Text style={styles.summaryLabel}>Summary: </Text>
+                        <Text
+                            style={styles.summary}
+                            numberOfLines={3}
+                            ellipsizeMode="tail"
+                        >
+                            {item.summaryFromGPT}
                         </Text>
                     </View>
                 </Card.Content>
@@ -126,21 +126,21 @@ export default function ListOfComponents() {
         </TouchableOpacity>
     );
 
-    if (selectedTranscriptId && transcriptDetails) {
+    // Detail View
+    if (selectedNoteId && noteDetails) {
         return (
             <View style={styles.container}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-                        <Text style={styles.backButtonText}>← Back</Text>
-                    </TouchableOpacity>
-                    <View style={styles.dateTimeContainer}>
-                        <Text style={styles.dateText}>
-                            {format(new Date(transcriptDetails.created_at), 'MMM dd, yyyy')}
-                        </Text>
-                        <Text style={styles.timeText}>
-                            {format(new Date(transcriptDetails.created_at), 'HH:mm')}
-                        </Text>
-                    </View>
+                <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+                    <Text style={styles.backButtonText}>← Back</Text>
+                </TouchableOpacity>
+                <Text style={styles.headerText}>Note Details</Text>
+                <View style={styles.dateTimeContainer}>
+                    <Text style={styles.dateText}>
+                        {format(new Date(noteDetails.date), 'dd MMM yyyy')}
+                    </Text>
+                    <Text style={styles.timeText}>
+                        {format(new Date(noteDetails.date), 'HH:mm')}
+                    </Text>
                 </View>
 
                 <View style={styles.tabButtonsContainer}>
@@ -149,41 +149,52 @@ export default function ListOfComponents() {
                             key={tab}
                             style={[
                                 styles.tabButton,
-                                activeTab === tab && styles.activeTabButton
+                                activeTab === tab && styles.activeTabButton,
                             ]}
                             onPress={() => setActiveTab(tab as 'Summary' | 'Transcript' | 'Insight')}
                         >
-                            <Text style={[
-                                styles.tabButtonText,
-                                activeTab === tab && styles.activeTabButtonText
-                            ]}>
+                            <Text
+                                style={[
+                                    styles.tabButtonText,
+                                    activeTab === tab && styles.activeTabButtonText,
+                                ]}
+                            >
                                 {tab}
                             </Text>
                         </TouchableOpacity>
                     ))}
                 </View>
 
-                <ScrollView
-                    style={styles.contentContainer}
-                    showsVerticalScrollIndicator={false}
-                >
-                    <Text style={styles.contentText}>
-                        {activeTab === 'Summary' && (transcriptDetails.summary?.replace('Summary: ', '') || '')}
-                        {activeTab === 'Transcript' && (transcriptDetails.transcript || '')}
-                        {activeTab === 'Insight' && (transcriptDetails.insight || '')}
-                    </Text>
-                </ScrollView>
+                <View style={styles.contentContainer}>
+                    {activeTab === 'Insight' ? (
+                        <ScrollView
+                            style={styles.insightScrollView}
+                            contentContainerStyle={styles.insightScrollViewContent}
+                            showsVerticalScrollIndicator={true}
+                            {...(Platform.OS === 'ios' ? { indicatorStyle: 'black' } : {})}
+                        >
+                            <Text style={styles.contentText}>
+                                {noteDetails.insightFromGPT}
+                            </Text>
+                        </ScrollView>
+                    ) : (
+                        <Text style={styles.contentText}>
+                            {activeTab === 'Summary' && noteDetails.summaryFromGPT}
+                            {activeTab === 'Transcript' && noteDetails.transcriptFromDeepgram}
+                        </Text>
+                    )}
+                </View>
             </View>
         );
     }
 
+    // List View
     return (
         <FlatList
-            data={transcripts}
+            data={notes}
             renderItem={renderItem}
             keyExtractor={(item) => item._id}
             contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
         />
     );
 }
@@ -191,164 +202,143 @@ export default function ListOfComponents() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F7F9FC',
-        padding: 16,
+        backgroundColor: BACKGROUND_COLOR,
+        padding: 20,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#F7F9FC',
-        gap: 16,
+        backgroundColor: BACKGROUND_COLOR,
     },
     loadingText: {
-        fontSize: 16,
-        color: '#475569',
-        marginTop: 8,
+        fontSize: 18,
+        color: SECONDARY_COLOR,
+        marginTop: 10,
     },
     listContainer: {
-        padding: 16,
-        paddingBottom: 32,
+        padding: 20,
     },
     cardWrapper: {
-        marginBottom: 16,
+        marginBottom: 15,
     },
     card: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: CARD_BACKGROUND_COLOR,
         borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 1,
-        },
-        shadowOpacity: 0.08,
+        elevation: 5, // Increased elevation for a more pronounced shadow
+        shadowColor: SHADOW_COLOR,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1, // Slightly increased shadow opacity
         shadowRadius: 4,
-        elevation: 2,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
+        padding: 18, // Slightly increased padding inside the card
+        borderWidth: 1, // Added a subtle border
+        borderColor: BACKGROUND_COLOR, // Border color matches the background
     },
     dateContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 12,
-        paddingBottom: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        marginBottom: 8, // Reduced marginBottom
     },
     date: {
-        fontSize: 14,
-        color: '#475569',
-        fontWeight: '500',
+        fontSize: 13, // Slightly smaller date text
+        color: SECONDARY_COLOR,
     },
     time: {
-        fontSize: 14,
-        color: '#64748B',
+        fontSize: 11, // Even smaller time text
+        color: SECONDARY_COLOR,
     },
     summaryContainer: {
-        flex: 1,
+        flexDirection: 'column',
+        marginTop: 8, // Reduced marginTop
+    },
+    summaryLabel: {
+        fontSize: 15, // Slightly smaller summary label
+        fontWeight: 'bold',
+        color: TEXT_COLOR,
+        marginBottom: 4, // Reduced marginBottom
     },
     summary: {
-        fontSize: 15,
-        lineHeight: 22,
-        color: '#334155',
-        fontWeight: '400',
+        fontSize: 15, // Slightly smaller summary text
+        color: TEXT_COLOR,
+        lineHeight: 20, // Reduced lineHeight
     },
     header: {
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 24,
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E2E8F0',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    headerText: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: TEXT_COLOR,
+        marginBottom: 8,
     },
     backButton: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 8,
+        paddingVertical: 8, // Reduced vertical padding
+        paddingHorizontal: 12, // Reduced horizontal padding
+        backgroundColor: CARD_BACKGROUND_COLOR,
+        borderRadius: 6, // Slightly smaller border radius
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 1,
-        },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
+        borderColor: SECONDARY_COLOR,
+        marginBottom: 8, // Reduced marginBottom
     },
     backButtonText: {
-        color: '#334155',
-        fontSize: 14,
-        fontWeight: '500',
+        fontSize: 14, // Smaller back button text
+        color: TEXT_COLOR,
     },
     dateTimeContainer: {
         flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
+        justifyContent: 'space-between',
+        marginBottom: 8,
     },
     dateText: {
-        fontSize: 15,
-        fontWeight: '500',
-        color: '#334155',
+        fontSize: 13,
+        color: SECONDARY_COLOR,
     },
     timeText: {
-        fontSize: 14,
-        color: '#64748B',
+        fontSize: 11,
+        color: SECONDARY_COLOR,
     },
     tabButtonsContainer: {
         flexDirection: 'row',
-        backgroundColor: '#F1F5F9',
-        borderRadius: 12,
-        padding: 4,
-        marginBottom: 24,
+        justifyContent: 'space-around',
+        backgroundColor: BACKGROUND_COLOR,
+        borderRadius: 20, // Slightly smaller border radius
+        padding: 4, // Reduced padding
+        marginBottom: 15, // Reduced marginBottom
     },
     tabButton: {
-        flex: 1,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 8,
+        paddingVertical: 8, // Reduced vertical padding
+        paddingHorizontal: 12, // Reduced horizontal padding
+        borderRadius: 16, // Slightly smaller border radius
     },
     activeTabButton: {
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 1,
-        },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
+        backgroundColor: PRIMARY_COLOR,
     },
     tabButtonText: {
-        fontSize: 14,
-        textAlign: 'center',
-        color: '#64748B',
-        fontWeight: '500',
+        fontSize: 14, // Slightly smaller tab button text
+        color: SECONDARY_COLOR,
     },
     activeTabButtonText: {
-        color: '#0066CC',
+        color: CARD_BACKGROUND_COLOR,
     },
     contentContainer: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        padding: 16,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 1,
-        },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 2,
+        backgroundColor: CARD_BACKGROUND_COLOR,
+        borderRadius: 10,
+        padding: 18, // Reduced padding
     },
     contentText: {
-        fontSize: 15,
-        lineHeight: 24,
-        color: '#334155',
-        letterSpacing: 0.3,
+        fontSize: 15, // Slightly smaller content text
+        color: TEXT_COLOR,
+        lineHeight: 22, // Reduced lineHeight
+    },
+    insightScrollView: {
+        flex: 1,
+    },
+    insightScrollViewContent: {
+        paddingRight: 8,
     },
 });
