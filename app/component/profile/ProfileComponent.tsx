@@ -1,32 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    View, 
-    Text, 
-    StyleSheet, 
-    TextInput, 
-    TouchableOpacity, 
-    Alert, 
+import {
+    View,
+    Text,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    Alert,
     ActivityIndicator,
     ScrollView,
-    SafeAreaView 
+    SafeAreaView
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import config from '../../config';
+import { format } from 'date-fns';
+import { FontAwesome } from '@expo/vector-icons'; // Import FontAwesome for icons
 
 interface UserProfile {
+    user_id: string;
+    mobileNumber: string;
     username: string;
-    phone_number: string;
-    created_at: string;
+    profilePic: string | null;
+    isVerified: boolean;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export default function ProfileComponent() {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isEditing, setIsEditing] = useState(false);
+    const [isEditingUsername, setIsEditingUsername] = useState(false);
     const [editedUsername, setEditedUsername] = useState('');
-    const [editedPhoneNumber, setEditedPhoneNumber] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+
+    // New state variables for phone number change
+    const [isChangingPhoneNumber, setIsChangingPhoneNumber] = useState(false);
+    const [newPhoneNumber, setNewPhoneNumber] = useState('');
+    const [otp, setOtp] = useState('');
+    const [isSubmittingPhoneNumber, setIsSubmittingPhoneNumber] = useState(false);
 
     useEffect(() => {
         fetchProfile();
@@ -40,16 +51,14 @@ export default function ProfileComponent() {
                 return;
             }
 
-            const response = await axios.get(`${config.API_URL}/profile/profile/`, {
-                headers: {
-                    'user-id': userId,
-                },
-            });
+            const response = await axios.get(`${config.API_URL}/profile/profile/?user_id=${userId}`);
 
             if (response.status === 200) {
                 setProfile(response.data);
                 setEditedUsername(response.data.username);
-                setEditedPhoneNumber(response.data.phone_number);
+
+            } else {
+                Alert.alert('Error', 'Failed to fetch profile data');
             }
         } catch (error) {
             Alert.alert('Error', 'Failed to fetch profile data');
@@ -59,7 +68,7 @@ export default function ProfileComponent() {
         }
     };
 
-    const handleUpdate = async () => {
+    const handleUpdateUsername = async () => {
         try {
             setIsSaving(true);
             const userId = await AsyncStorage.getItem('userId');
@@ -69,26 +78,24 @@ export default function ProfileComponent() {
             }
 
             const response = await axios.put(
-                `${config.API_URL}/profile/profile/`,
+                `${config.API_URL}/profile/profile/?user_id=${userId}`,
                 {
                     username: editedUsername,
-                    phone_number: editedPhoneNumber,
+                    profilePic: null  // Setting profilePic to null
                 },
-                {
-                    headers: {
-                        'user-id': userId,
-                    },
-                }
+                {}
             );
 
             if (response.status === 200) {
                 setProfile(response.data);
-                setIsEditing(false);
-                Alert.alert('Success', 'Profile updated successfully');
+                setIsEditingUsername(false);
+                Alert.alert('Success', 'Username updated successfully');
+            } else {
+                Alert.alert('Error', 'Failed to update username');
             }
         } catch (error) {
-            Alert.alert('Error', 'Failed to update profile');
-            console.error('Error updating profile:', error);
+            Alert.alert('Error', 'Failed to update username');
+            console.error('Error updating username:', error);
         } finally {
             setIsSaving(false);
         }
@@ -114,17 +121,15 @@ export default function ProfileComponent() {
                                 return;
                             }
 
-                            const response = await axios.delete(`${config.API_URL}/profile/profile/`, {
-                                headers: {
-                                    'user-id': userId,
-                                },
-                            });
+                            const response = await axios.delete(`${config.API_URL}/profile/profile/?user_id=${userId}`);
 
                             if (response.status === 200) {
                                 await AsyncStorage.clear();
                                 Alert.alert('Success', 'Account deleted successfully');
                                 // Here you would typically navigate to the login screen
                                 // navigation.replace('Login');
+                            } else {
+                                Alert.alert('Error', 'Failed to delete account');
                             }
                         } catch (error) {
                             Alert.alert('Error', 'Failed to delete account');
@@ -134,6 +139,46 @@ export default function ProfileComponent() {
                 },
             ]
         );
+    };
+
+    const handleChangePhoneNumber = async () => {
+
+        try {
+            setIsSubmittingPhoneNumber(true);
+            const userId = await AsyncStorage.getItem('userId');
+            if (!userId) {
+                Alert.alert('Error', 'User ID not found. Please login again.');
+                return;
+            }
+
+            const response = await axios.post(
+                `${config.API_URL}/profile/profile/change-phone-number/?user_id=${userId}`,
+                {
+                    new_mobileNumber: newPhoneNumber,
+                    otp: otp,
+                }
+            );
+
+            if (response.status === 200) {
+                setProfile(response.data);
+                Alert.alert('Success', 'Phone number changed successfully.');
+                setIsChangingPhoneNumber(false);  // Go back to profile view
+
+                // Clear the input fields
+                setNewPhoneNumber('');
+                setOtp('');
+
+                // Refresh the profile data
+                fetchProfile();
+            } else {
+                Alert.alert('Error', 'Failed to change phone number.');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Failed to change phone number.');
+            console.error('Error changing phone number:', error);
+        } finally {
+            setIsSubmittingPhoneNumber(false);
+        }
     };
 
     if (isLoading) {
@@ -150,27 +195,45 @@ export default function ProfileComponent() {
             <ScrollView style={styles.scrollView}>
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>My Profile</Text>
-                    {!isEditing && (
-                        <TouchableOpacity 
-                            style={styles.editButton}
-                            onPress={() => setIsEditing(true)}
-                        >
-                            <Text style={styles.editButtonText}>Edit</Text>
-                        </TouchableOpacity>
-                    )}
                 </View>
 
                 <View style={styles.profileCard}>
                     <View style={styles.profileSection}>
-                        <Text style={styles.label}>USERNAME</Text>
-                        {isEditing ? (
-                            <TextInput
-                                style={styles.input}
-                                value={editedUsername}
-                                onChangeText={setEditedUsername}
-                                placeholder="Enter username"
-                                placeholderTextColor="#94A3B8"
-                            />
+                        <View style={styles.labelContainer}>
+                            <Text style={styles.label}>USERNAME</Text>
+                            <TouchableOpacity onPress={() => setIsEditingUsername(true)}>
+                                <FontAwesome name="edit" size={16} color="#0066CC" style={styles.editIcon} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {isEditingUsername ? (
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    style={styles.input}
+                                    value={editedUsername}
+                                    onChangeText={setEditedUsername}
+                                    placeholder="Enter username"
+                                    placeholderTextColor="#94A3B8"
+                                />
+                                <TouchableOpacity
+                                    style={[styles.actionButton, styles.saveButton]}
+                                    onPress={handleUpdateUsername}
+                                    disabled={isSaving}
+                                >
+                                    {isSaving ? (
+                                        <ActivityIndicator color="#FFFFFF" size="small" />
+                                    ) : (
+                                        <Text style={styles.actionButtonText}>Save</Text>
+                                    )}
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.actionButton, styles.cancelButton]}
+                                    onPress={() => setIsEditingUsername(false)}
+                                    disabled={isSaving}
+                                >
+                                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                                </TouchableOpacity>
+                            </View>
                         ) : (
                             <Text style={styles.value}>{profile?.username}</Text>
                         )}
@@ -179,18 +242,50 @@ export default function ProfileComponent() {
                     <View style={styles.divider} />
 
                     <View style={styles.profileSection}>
-                        <Text style={styles.label}>PHONE NUMBER</Text>
-                        {isEditing ? (
-                            <TextInput
-                                style={styles.input}
-                                value={editedPhoneNumber}
-                                onChangeText={setEditedPhoneNumber}
-                                placeholder="Enter phone number"
-                                placeholderTextColor="#94A3B8"
-                                keyboardType="phone-pad"
-                            />
+                        <View style={styles.labelContainer}>
+                            <Text style={styles.label}>PHONE NUMBER</Text>
+                            <TouchableOpacity onPress={() => setIsChangingPhoneNumber(true)}>
+                                <FontAwesome name="edit" size={16} color="#0066CC" style={styles.editIcon} />
+                            </TouchableOpacity>
+                        </View>
+                        {isChangingPhoneNumber ? (
+                            <View>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="New Phone Number"
+                                    placeholderTextColor="#94A3B8"
+                                    keyboardType="phone-pad"
+                                    value={newPhoneNumber}
+                                    onChangeText={setNewPhoneNumber}
+                                />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="OTP"
+                                    placeholderTextColor="#94A3B8"
+                                    keyboardType="number-pad"
+                                    value={otp}
+                                    onChangeText={setOtp}
+                                />
+                                <TouchableOpacity
+                                    style={styles.changePhoneNumberButton}
+                                    onPress={handleChangePhoneNumber}
+                                    disabled={isSubmittingPhoneNumber}
+                                >
+                                    {isSubmittingPhoneNumber ? (
+                                        <ActivityIndicator color="#FFFFFF" />
+                                    ) : (
+                                        <Text style={styles.changePhoneNumberButtonText}>Submit</Text>
+                                    )}
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.actionButton, styles.cancelButton]}
+                                    onPress={() => setIsChangingPhoneNumber(false)}
+                                >
+                                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                                </TouchableOpacity>
+                            </View>
                         ) : (
-                            <Text style={styles.value}>{profile?.phone_number}</Text>
+                            <Text style={styles.value}>{profile?.mobileNumber}</Text>
                         )}
                     </View>
 
@@ -199,37 +294,19 @@ export default function ProfileComponent() {
                     <View style={styles.profileSection}>
                         <Text style={styles.label}>MEMBER SINCE</Text>
                         <Text style={styles.value}>
-                            {new Date(profile?.created_at || '').toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                            })}
+                            {format(new Date(profile?.createdAt || ''), 'MMMM dd, yyyy')}
+                        </Text>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    <View style={styles.profileSection}>
+                        <Text style={styles.label}>LAST UPDATED</Text>
+                        <Text style={styles.value}>
+                            {format(new Date(profile?.updatedAt || ''), 'MMMM dd, yyyy, HH:mm')}
                         </Text>
                     </View>
                 </View>
-
-                {isEditing && (
-                    <View style={styles.editActionsContainer}>
-                        <TouchableOpacity
-                            style={[styles.actionButton, styles.saveButton]}
-                            onPress={handleUpdate}
-                            disabled={isSaving}
-                        >
-                            {isSaving ? (
-                                <ActivityIndicator color="#FFFFFF" size="small" />
-                            ) : (
-                                <Text style={styles.actionButtonText}>Save Changes</Text>
-                            )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.actionButton, styles.cancelButton]}
-                            onPress={() => setIsEditing(false)}
-                            disabled={isSaving}
-                        >
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
 
                 <TouchableOpacity
                     style={styles.deleteAccount}
@@ -263,7 +340,7 @@ const styles = StyleSheet.create({
     },
     header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'center', // Center the title
         alignItems: 'center',
         padding: 20,
         backgroundColor: '#FFFFFF',
@@ -274,17 +351,6 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: '600',
         color: '#1E3A8A',
-    },
-    editButton: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        backgroundColor: '#E1F0FF',
-        borderRadius: 8,
-    },
-    editButtonText: {
-        color: '#0066CC',
-        fontSize: 14,
-        fontWeight: '600',
     },
     profileCard: {
         margin: 16,
@@ -302,6 +368,11 @@ const styles = StyleSheet.create({
     profileSection: {
         padding: 16,
     },
+    labelContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
     label: {
         fontSize: 12,
         fontWeight: '600',
@@ -314,7 +385,16 @@ const styles = StyleSheet.create({
         color: '#334155',
         fontWeight: '500',
     },
+    editIcon: {
+        marginLeft: 8,
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
     input: {
+        flex: 1,
         fontSize: 16,
         color: '#334155',
         padding: 12,
@@ -322,6 +402,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 1,
         borderColor: '#E2E8F0',
+        marginRight: 8,
     },
     divider: {
         height: 1,
@@ -332,10 +413,11 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     actionButton: {
-        padding: 16,
-        borderRadius: 12,
+        padding: 12,
+        borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
+        marginLeft: 4,
     },
     saveButton: {
         backgroundColor: '#0066CC',
@@ -347,12 +429,12 @@ const styles = StyleSheet.create({
     },
     actionButtonText: {
         color: '#FFFFFF',
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '600',
     },
     cancelButtonText: {
         color: '#64748B',
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '600',
     },
     deleteAccount: {
@@ -363,6 +445,25 @@ const styles = StyleSheet.create({
     deleteAccountText: {
         color: '#EF4444',
         fontSize: 14,
+        fontWeight: '600',
+    },
+    otpInfo: {
+        fontSize: 14,
+        color: '#64748B',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    changePhoneNumberButton: {
+        paddingVertical: 14,
+        backgroundColor: '#0066CC',
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 10,
+    },
+    changePhoneNumberButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
         fontWeight: '600',
     },
 });
