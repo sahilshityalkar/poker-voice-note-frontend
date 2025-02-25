@@ -1,11 +1,12 @@
 // app/(tabs)/players/index.tsx
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import PlayersComponent from '../../component/players/PlayersComponent';
 
 export default function PlayersList() {
     return (
         <View style={styles.container}>
-            <Text>Players List</Text>
+            <PlayersComponent />
         </View>
     );
 }
