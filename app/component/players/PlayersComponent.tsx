@@ -17,7 +17,7 @@ import { format } from 'date-fns';
 import config from '../../config';
 import { FontAwesome } from '@expo/vector-icons';
 
-// Color Palette (Updated for a cleaner look)
+// Color Palette
 const PRIMARY_COLOR = '#3498db';   // Light Blue
 const SECONDARY_COLOR = '#7f8c8d';   // Medium Gray
 const ACCENT_COLOR = '#f39c12';    // Orange (for highlights)
@@ -247,18 +247,15 @@ const PlayersComponent: React.FC = () => {
                     <Text style={styles.backButtonText}>Back to Players</Text>
                 </TouchableOpacity>
 
-                {/* Player Info Section */}
-                {player && (
-                    <View style={styles.playerInfoContainer}>
-                        <Text style={styles.playerName}>{player.name}</Text>
-                        <View style={styles.infoRow}>
-                            <Text style={styles.playerInfo}><FontAwesome name="hand-o-up" size={14} color={SECONDARY_COLOR} /> {player.totalHands} Hands</Text>
-                            <Text style={styles.playerInfo}><FontAwesome name="trophy" size={14} color={ACCENT_COLOR} /> {player.totalWins} Wins</Text>
-                        </View>
-                        <Text style={styles.secondaryText}>Created: {format(new Date(player.createdAt), 'MMMM dd, yyyy')}</Text>
-                        <Text style={styles.secondaryText}>Updated: {format(new Date(player.updatedAt), 'MMMM dd, yyyy')}</Text>
+                 <View style={styles.playerInfoContainer}>
+                    <Text style={styles.playerTitle}>{player.name}</Text>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.playerInfo}><FontAwesome name="hand-o-up" size={14} color={SECONDARY_COLOR} /> {player.totalHands} Hands</Text>
+                        <Text style={styles.playerInfo}><FontAwesome name="trophy" size={14} color={ACCENT_COLOR} /> {player.totalWins} Wins</Text>
                     </View>
-                )}
+                    <Text style={styles.secondaryText}>Created: {format(new Date(player.createdAt), 'MMMM dd, yyyy')}</Text>
+                    <Text style={styles.secondaryText}>Updated: {format(new Date(player.updatedAt), 'MMMM dd, yyyy')}</Text>
+                </View>
 
                 <FlatList
                     data={handNotes.handAndNotes}
@@ -363,10 +360,10 @@ const styles = StyleSheet.create({
         padding: 20,
         borderRadius: 12,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 2 }, // Reduced height
+        shadowOpacity: 0.07, // Reduced opacity
+        shadowRadius: 4, // Reduced radius
+        elevation: 2, // Reduced elevation
     },
     handTitle: {
         fontSize: 20,
@@ -418,15 +415,7 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     playerInfoContainer: {
-        backgroundColor: CARD_BACKGROUND_COLOR,
-        padding: 25,
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 4,
-        marginBottom: 25,
+       marginBottom: 20
     },
     secondaryText: {
         fontSize: 14,
@@ -436,6 +425,22 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 5,
+    },
+      elevatedCard: {
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.15,
+        shadowRadius: 5,
+        elevation: 6,
+    },
+    playerTitle: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#2d2d2d',
+        marginBottom: 10
     },
 });
 
