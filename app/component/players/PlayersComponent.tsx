@@ -35,6 +35,8 @@ interface Player {
     handReferences: HandReference[];
     createdAt: string; // ISO string
     updatedAt: string; // ISO string
+    strengths?: string[];    // Make strengths optional
+    weaknesses?: string[];   // Make weaknesses optional
 }
 
 interface HandReference {
@@ -91,6 +93,7 @@ const PlayersComponent: React.FC = () => {
     const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
     const [selectedHandNote, setSelectedHandNote] = useState<{ handId: string; noteId: string } | null>(null);
     const [handNotes, setHandNotes] = useState<PlayerDetailsResponse | null>(null);
+    const [analyzing, setAnalyzing] = useState(false); // New state for analyzing indicator
 
     useEffect(() => {
         fetchPlayers();
@@ -154,6 +157,27 @@ const PlayersComponent: React.FC = () => {
 
     const handleBackToHandNotes = () => {
         setSelectedHandNote(null);
+    };
+
+      const handleAnalyzePlayer = async (playerId: string) => {
+        setAnalyzing(true); // Start analyzing
+
+        try {
+            // POST request to analyze the player
+            const response = await axios.post(`${config.API_URL}/api/v1/analyze/players/${playerId}/analyze`);
+
+            if (response.status === 200) {
+                // On success, refetch hand notes
+                await fetchHandNotes(playerId);
+            } else {
+                Alert.alert('Error', 'Failed to analyze player.');
+            }
+        } catch (error: any) {
+            console.error('Error analyzing player:', error);
+            Alert.alert('Error', 'Failed to analyze player.');
+        } finally {
+            setAnalyzing(false); // Stop analyzing
+        }
     };
 
     const renderPlayerItem = ({ item }: { item: Player }) => (
@@ -255,6 +279,34 @@ const PlayersComponent: React.FC = () => {
                     </View>
                     <Text style={styles.secondaryText}>Created: {format(new Date(player.createdAt), 'MMMM dd, yyyy')}</Text>
                     <Text style={styles.secondaryText}>Updated: {format(new Date(player.updatedAt), 'MMMM dd, yyyy')}</Text>
+                    {(player.strengths && player.strengths.length > 0) && (
+                        <View style={styles.strengthsWeaknessesContainer}>
+                            <Text style={styles.strengthsTitle}>Strengths:</Text>
+                            {player.strengths.map((strength, index) => (
+                                <Text key={index} style={styles.strengthItem}>- {strength}</Text>
+                            ))}
+                        </View>
+                    )}
+
+                    {(player.weaknesses && player.weaknesses.length > 0) && (
+                        <View style={styles.strengthsWeaknessesContainer}>
+                            <Text style={styles.weaknessesTitle}>Weaknesses:</Text>
+                            {player.weaknesses.map((weakness, index) => (
+                                <Text key={index} style={styles.weaknessItem}>- {weakness}</Text>
+                            ))}
+                        </View>
+                    )}
+                    <TouchableOpacity
+                        style={styles.analyzeButton}
+                        onPress={() => handleAnalyzePlayer(selectedPlayerId)}
+                        disabled={analyzing}
+                    >
+                        {analyzing ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <Text style={styles.analyzeButtonText}>Analyze Player</Text>
+                        )}
+                    </TouchableOpacity>
                 </View>
 
                 <FlatList
@@ -415,7 +467,7 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     playerInfoContainer: {
-       marginBottom: 20
+        marginBottom: 20
     },
     secondaryText: {
         fontSize: 14,
@@ -439,8 +491,46 @@ const styles = StyleSheet.create({
     playerTitle: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: '#2d2d2d',
+        color: '#2a2a2a',
         marginBottom: 10
+    },
+     analyzeButton: {
+        backgroundColor: ACCENT_COLOR,
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 15,
+        alignItems: 'center',
+    },
+    analyzeButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+     strengthsWeaknessesContainer: {
+        marginTop: 15,
+        padding: 10,
+        backgroundColor: CARD_BACKGROUND_COLOR,
+        borderRadius: 8,
+    },
+    strengthsTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#2ecc71', // Green
+        marginBottom: 5,
+    },
+    weaknessesTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#e74c3c', // Red
+        marginBottom: 5,
+    },
+    strengthItem: {
+        fontSize: 16,
+        color: TEXT_COLOR,
+    },
+    weaknessItem: {
+        fontSize: 16,
+        color: TEXT_COLOR,
     },
 });
 
